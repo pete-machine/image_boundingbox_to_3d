@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<launch>
+<!-- Show raw  
+	<node name="image_raw" pkg="image_view" type="image_view" respawn="false" output="screen">
+		<remap from="image" to="/Multisense/left/image_rect_color"/>
+		<param name="autosize" value="false" />
+	</node>
+-->
+
+	<!-- Semantic Segmentation node  -->
+	<node type="get_bounding_boxes.py" name="get_bounding_boxes_node" pkg="image_boundingbox_to_3d" respawn="true" output="screen">
+
+
+		<!-- Select GPU device, negative values selects cpu 
+		<param name="imgDimWidth" value="512" />
+		<param name="imgDimHeight" value="217" />
+		<param name="gpuDevice" value="3" /> 
+
+		<param name="dirModelDescription" value="$(find fcn8_ros)/models/deploy.prototxt" />
+		<param name="dirModelVaules" value="$(find fcn8_ros)/models/pascalcontext-fcn8s-heavy.caffemodel" />
+		<param name="dirTestImage" value="$(find fcn8_ros)/src/Street2.jpg" />
+		<param name="dirRemapping" value="$(find fcn8_ros)/remappingObjectTypes.mat" />
+		-->
+	</node>
+
+</launch>
