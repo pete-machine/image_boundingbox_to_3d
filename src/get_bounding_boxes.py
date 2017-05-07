@@ -1,41 +1,183 @@
 #!/usr/bin/env python
 
 import rospy
-import time
+import numpy as np
+import cv2 
+import os
 from cv_bridge import CvBridge
 import message_filters
+#from image_geometry import PinholeCameraModel
+import image_geometry
+
 from sensor_msgs.msg import Image, CameraInfo
-from collections import namedtuple
-from std_msgs.msg import Float64MultiArray
-from std_msgs.msg import UInt16
 from msg_boundingbox.msg import Boundingbox, Boundingboxes
+from visualization_msgs.msg import Marker
+from visualization_msgs.msg import MarkerArray
 
 rospy.init_node('get_boundingbox_distance', anonymous=False)
+nodeName = rospy.get_name()
+
+# Get topic names from launch file.
+topicCamImg = rospy.get_param(nodeName+'/topicCamImage', 'UnknownInputTopic') 
+topicCamInfo = rospy.get_param(nodeName+'/topicCamInfo', 'UnknownInputTopic') 
+topicDepth = rospy.get_param(nodeName+'/topicDepth', 'UnknownInputTopic') 
+topicBBoxIn = rospy.get_param(nodeName+'/topicBBoxIn', 'UnknownInputTopic') 
+topicBBoxOut = rospy.get_param(nodeName+'/topicBBoxOut', 'UnknownInputTopic') 
+
+
+# Get subscripers.
+image_sub = message_filters.Subscriber(topicCamImg, Image)
+info_sub = message_filters.Subscriber(topicCamInfo, CameraInfo)
+depth_sub = message_filters.Subscriber(topicDepth, Image)
+bb_sub = message_filters.Subscriber(topicBBoxIn, Boundingboxes)
+
+topicParts = [strPart for strPart in topicBBoxIn.split('/') if strPart is not '']
+
+# Publishers
+pub_bb = rospy.Publisher(topicBBoxOut, MarkerArray , queue_size=0)
+
 
 bridge = CvBridge()
+cam_model = image_geometry.PinholeCameraModel()
 
 #def callback(image, camera_info):
 #    print('Base')
+
+#pub_bb = rospy.Publisher('/det/Multisense/bboxes', Marker , queue_size=0)
+
+def bbCoord_FromNormalized2Real(bounding_box,dimImage):
+    bb = np.array([bounding_box.x*dimImage[1], bounding_box.y*dimImage[0], bounding_box.w*dimImage[1],bounding_box.h*dimImage[0]]).astype(int)
+    bbCrop = np.array([bb[0],bb[0]+bb[2],bb[1],bb[1]+bb[3]]);
+    bbCrop = np.maximum(bbCrop,0)
+    bbCrop[0:2] = np.minimum(bbCrop[0:2],dimImage[1])
+    bbCrop[2:4] = np.minimum(bbCrop[2:4],dimImage[0])
+    # xmin,xmax,ymin,ymax
+    # col_min,col_max,row_min,row_max
+    return bbCrop;
     
-def callback_bb(image, depth, bounding_boxes):
-    cv_image = bridge.imgmsg_to_cv2(image, "mono8")
-    cv_depth = bridge.imgmsg_to_cv2(image, desired_encoding="passthrough")
+def callback_bb(image, info, depth, bounding_boxes):
+    cam_model.fromCameraInfo(info)    
+    cv_image = bridge.imgmsg_to_cv2(image, desired_encoding="passthrough")
+    cv_depth = bridge.imgmsg_to_cv2(depth, desired_encoding="passthrough")
+    
+#    # ONLY FOR TESTING    
+#    if len(bounding_boxes.boundingboxes) > 0: 
+#        print("STORE DATA")
+#        dirImage = "/home/pistol/Code/ros_workspaces/private/src/image_boundingbox_to_3d/testRGB.jpg";
+#        dirDepth = '/home/pistol/Code/ros_workspaces/private/src/image_boundingbox_to_3d/testDepth.dat';
+#        dirBoundingBox = '/home/pistol/Code/ros_workspaces/private/src/image_boundingbox_to_3d/testBoundingBox.dat';
+#        cv2.imwrite(dirImage , cv_image );
+#        with open(dirDepth, 'wb') as outfile:
+#            p.dump(cv_depth, outfile, protocol=p.HIGHEST_PROTOCOL)
+#        with open(dirBoundingBox, 'wb') as outfile:
+#            p.dump(bounding_boxes, outfile, protocol=p.HIGHEST_PROTOCOL)
+#    
+#        cv_image = cv2.imread(dirImage)
+#        cv_depth = p.load(open(dirDepth,"rb"))
+#        bounding_boxes = p.load(open(dirBoundingBox,"rb"))
+    markerArray = MarkerArray()
+    marker = Marker()
+    marker.header = image.header
+    marker.lifetime = rospy.Duration(1) # One second
+    marker.type = marker.CYLINDER
+    marker.action = marker.ADD
+    #marker.action = marker.DELETEALL
+    
+    bb_id = 0
+    #dimImage = cv_depth.shape
     for idx, bounding_box in enumerate(bounding_boxes.boundingboxes): 
-        print(idx)
-        print(bounding_box)
+        ## Depth image        
+        bbCropDepth = bbCoord_FromNormalized2Real(bounding_box,cv_depth.shape)
+        
+        
+#        bbPoints = [np.array([bounding_box.x,bounding_box.y]),
+#                    np.array([bounding_box.x,bounding_box.y+bounding_box.h]),
+#                    np.array([bounding_box.x+bounding_box.w,bounding_box.y+bounding_box.h]),
+#                    np.array([bounding_box.x+bounding_box.w,bounding_box.y])]
+        
+        # Crop out depth information from image. 
+        depthCrop = cv_depth[bbCropDepth[2]:bbCropDepth[3],bbCropDepth[0]:bbCropDepth[1]];
+        depthCropVec = depthCrop[:];
+        
+        # Get only valid depth values
+        depthCropVec = depthCropVec[~np.isnan(depthCropVec)]
+        
+        medianDepth = np.median(depthCropVec)
+        
+        # tl: top-left corner, br: bottom-right corner
+        xyPoint_tl = np.array([bbCropDepth[0],bbCropDepth[2]]);
+        xyPoint_br = np.array([bbCropDepth[1],bbCropDepth[3]]);
+        
+        #for bbPoint in bbPoints:
+        ray_tl = np.array(cam_model.projectPixelTo3dRay(xyPoint_tl))
+        ray_br = np.array(cam_model.projectPixelTo3dRay(xyPoint_br))
+        xyzPoint_tl = ray_tl*medianDepth
+        xyzPoint_br = ray_br*medianDepth
+        
+        bbWidth = xyzPoint_br[0]-xyzPoint_tl[0]
+        bbHeight = xyzPoint_br[1]-xyzPoint_tl[1] 
+        bbPosition = np.array([xyzPoint_tl[0]+bbWidth/2,xyzPoint_br[1],(xyzPoint_tl[2]+xyzPoint_br[2])/2]) # x,y,z
+        
+#        print("bbCropDepth",bbCropDepth)
+#        print("Mean",np.mean(depthCropVec))
+#        print("Median",medianDepth)
+#        print("ray_tl: ", ray_tl,"PointInSpace",xyzPoint_tl)
+#        print("ray_br: ", ray_br,"PointInSpace",xyzPoint_br)
+#        print("Width:",bbWidth,"Height",bbHeight,"Position_xyz",bbPosition)        
+        
+        ## RGB image
+        bbCropRGB = bbCoord_FromNormalized2Real(bounding_box,cv_image.shape)
+        cv2.rectangle(cv_image,(bbCropRGB[0],bbCropRGB[2]),(bbCropRGB[1],bbCropRGB[3]),(0,255,0),1)
+        cv2.putText(cv_image,str(np.round(bbPosition,2)), (bbCropRGB[0],bbCropRGB[2]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255),2)        
+
+        marker.id = bb_id
+        marker.scale.x = bbWidth
+        marker.scale.y = bbWidth
+        marker.scale.z = bbHeight
+        
+        marker.pose.orientation.w = 1.0
+        marker.pose.position.x = bbPosition[0]
+        marker.pose.position.y = bbPosition[2]
+        marker.pose.position.z = bbPosition[1]
+        marker.color.a = bounding_box.prob # Confidence
+        if bounding_box.objectType == 0: # Human
+            marker.ns = os.path.join(topicParts[0], "human")
+            colorRgb = [1.0, 0.0, 0.0]
+        elif bounding_box.objectType == 1: # Other
+            marker.ns = os.path.join(topicParts[0], "other")
+            colorRgb = [0.0, 1.0, 1.0]
+        
+        elif bounding_box.objectType == 2: # Unknown (typically not to be dangered)
+            marker.ns = os.path.join(topicParts[0], "unknown")
+            colorRgb = [0.0, 1.0, 1.0]
+        else:
+            marker.ns = os.path.join(topicParts[0], "bad")
+            colorRgb = [0.0, 0.0, 1.0]
+        marker.color.r = colorRgb[0]
+        marker.color.g = colorRgb[1]
+        marker.color.b = colorRgb[2]        
+        
+        # Make marker for each bounding box.         
+        markerArray.markers.append(marker)
+        bb_id = bb_id+1
+    pub_bb.publish(markerArray)
+    
+    #print("END: MARKER MARKER MARKER MARKER MARKER MARKER") 
+    
+    cv2.imshow('image',cv_image)
+    cv2.waitKey(1)
+    
+        
+        
     print('Synchronized image and bounding boxes')
 
 
-image_sub = message_filters.Subscriber('/Multisense/left/image_rect_color', Image)
-depth_sub = message_filters.Subscriber('/Multisense/depth', Image)
-bb_sub = message_filters.Subscriber('/yolo/BBox/Multisense', Boundingboxes)
 
-info_sub = message_filters.Subscriber('/Multisense/left/image_rect_color/camera_info', CameraInfo)
 
 #ts = message_filters.TimeSynchronizer([image_sub, info_sub], 10)
 #ts.registerCallback(callback)
 
-ts_bb = message_filters.TimeSynchronizer([image_sub, depth_sub, bb_sub], 10)
+ts_bb = message_filters.TimeSynchronizer([image_sub,info_sub, depth_sub, bb_sub], 10)
 ts_bb.registerCallback(callback_bb)
 
 
@@ -53,7 +195,9 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
+
+
+
 #from collections import namedtuple
 #from std_msgs.msg import Float64MultiArray
 #from std_msgs.msg import UInt16

@@ -9,7 +9,11 @@
 
 	<!-- Semantic Segmentation node  -->
 	<node type="get_bounding_boxes.py" name="get_bounding_boxes_node" pkg="image_boundingbox_to_3d" respawn="true" output="screen">
-
+		<param name="topicCamImage" value="/Multisense/left/image_rect_color" />
+		<param name="topicCamInfo" value="/Multisense/left/image_rect_color/camera_info" />
+		<param name="topicDepth" value="/Multisense/depth" />
+		<param name="topicBBoxIn" value="/yolo/BBox/Multisense" />
+		<param name="topicBBoxOut" value="/yolo/BBox3d/Multisense" />
 
 		<!-- Select GPU device, negative values selects cpu 
 		<param name="imgDimWidth" value="512" />
