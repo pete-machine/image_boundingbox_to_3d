@@ -17,13 +17,15 @@ from visualization_msgs.msg import MarkerArray
 rospy.init_node('get_boundingbox_distance', anonymous=False)
 nodeName = rospy.get_name()
 
+# Estimate distance type
+estDistanceMethod = rospy.get_param(nodeName+'/estDistanceMethod', 1) # 0: mean, 1: median, 2: 10%-percentile.
+
 # Get topic names from launch file.
 topicCamImg = rospy.get_param(nodeName+'/topicCamImage', 'UnknownInputTopic') 
 topicCamInfo = rospy.get_param(nodeName+'/topicCamInfo', 'UnknownInputTopic') 
 topicDepth = rospy.get_param(nodeName+'/topicDepth', 'UnknownInputTopic') 
 topicBBoxIn = rospy.get_param(nodeName+'/topicBBoxIn', 'UnknownInputTopic') 
 topicBBoxOut = rospy.get_param(nodeName+'/topicBBoxOut', 'UnknownInputTopic') 
-
 
 # Get subscripers.
 image_sub = message_filters.Subscriber(topicCamImg, Image)
@@ -102,7 +104,14 @@ def callback_bb(image, info, depth, bounding_boxes):
         # Get only valid depth values
         depthCropVec = depthCropVec[~np.isnan(depthCropVec)]
         
-        medianDepth = np.median(depthCropVec)
+        if estDistanceMethod == 0:
+            medianDepth = np.mean(depthCropVec)
+        elif estDistanceMethod == 1:
+            medianDepth = np.median(depthCropVec)
+        elif estDistanceMethod == 2:
+            medianDepth = np.percentile(depthCropVec,10)
+        else:
+            raise ValueError('Unknown method for estimate distance selected, set estDistanceMethod to either 0,1 or 2')
         
         # tl: top-left corner, br: bottom-right corner
         xyPoint_tl = np.array([bbCropDepth[0],bbCropDepth[2]]);

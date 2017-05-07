@@ -14,6 +14,8 @@
 		<param name="topicDepth" value="/Multisense/depth" />
 		<param name="topicBBoxIn" value="/yolo/BBox/Multisense" />
 		<param name="topicBBoxOut" value="/yolo/BBox3d/Multisense" />
+		<param name="estDistanceMethod" value="2" /> <!-- Select either 0: mean, 1: median, 2: 10%-percentile>
+
 
 		<!-- Select GPU device, negative values selects cpu 
 		<param name="imgDimWidth" value="512" />
