@@ -18,14 +18,17 @@ rospy.init_node('get_boundingbox_distance', anonymous=False)
 nodeName = rospy.get_name()
 
 # Estimate distance type
-estDistanceMethod = rospy.get_param(nodeName+'/estDistanceMethod', 1) # 0: mean, 1: median, 2: 10%-percentile.
+paramEstDistanceMethod = rospy.get_param(nodeName+'/estDistanceMethod', 1) # 0: mean, 1: median, 2: 10%-percentile.
 
-# Get topic names from launch file.
-topicCamImg = rospy.get_param(nodeName+'/topicCamImage', 'UnknownInputTopic') 
-topicCamInfo = rospy.get_param(nodeName+'/topicCamInfo', 'UnknownInputTopic') 
-topicDepth = rospy.get_param(nodeName+'/topicDepth', 'UnknownInputTopic') 
-topicBBoxIn = rospy.get_param(nodeName+'/topicBBoxIn', 'UnknownInputTopic') 
-topicBBoxOut = rospy.get_param(nodeName+'/topicBBoxOut', 'UnknownInputTopic') 
+# Parameter to specify if bounding boxes are visualized in image. 
+paramVisualizeBoundingboxes = rospy.get_param(nodeName+'/visualizeBoundingboxes', 'False') 
+
+
+# Name of input topics from launch-file. 
+topicCamImg = rospy.get_param(nodeName+'/topicCamImage', nodeName+'UnknownInputTopic') 
+topicCamInfo = rospy.get_param(nodeName+'/topicCamInfo', nodeName+'UnknownInputTopic') 
+topicDepth = rospy.get_param(nodeName+'/topicDepth', nodeName+'UnknownInputTopic') 
+topicBBoxIn = rospy.get_param(nodeName+'/topicBBoxIn', nodeName+'UnknownInputTopic') 
 
 # Get subscripers.
 image_sub = message_filters.Subscriber(topicCamImg, Image)
@@ -33,10 +36,16 @@ info_sub = message_filters.Subscriber(topicCamInfo, CameraInfo)
 depth_sub = message_filters.Subscriber(topicDepth, Image)
 bb_sub = message_filters.Subscriber(topicBBoxIn, Boundingboxes)
 
-topicParts = [strPart for strPart in topicBBoxIn.split('/') if strPart is not '']
+# Name of output topics from launch-file. 
+topicBBoxOut = rospy.get_param(nodeName+'/topicBBoxOut', nodeName+'/BBox3d') 
+topicVisualizeOut = rospy.get_param(nodeName+'/topicVisualizeOut', nodeName+'/ImageBBox3d')
 
 # Publishers
 pub_bb = rospy.Publisher(topicBBoxOut, MarkerArray , queue_size=0)
+pub_image_visualize = rospy.Publisher(topicVisualizeOut, Image , queue_size=0)
+
+topicParts = [strPart for strPart in topicBBoxIn.split('/') if strPart is not '']
+
 
 
 bridge = CvBridge()
@@ -59,7 +68,8 @@ def bbCoord_FromNormalized2Real(bounding_box,dimImage):
     
 def callback_bb(image, info, depth, bounding_boxes):
     cam_model.fromCameraInfo(info)    
-    cv_image = bridge.imgmsg_to_cv2(image, desired_encoding="passthrough")
+    if paramVisualizeBoundingboxes == True:
+        cv_image = bridge.imgmsg_to_cv2(image, desired_encoding="passthrough")
     cv_depth = bridge.imgmsg_to_cv2(depth, desired_encoding="passthrough")
     
 #    # ONLY FOR TESTING    
@@ -104,11 +114,11 @@ def callback_bb(image, info, depth, bounding_boxes):
         # Get only valid depth values
         depthCropVec = depthCropVec[~np.isnan(depthCropVec)]
         
-        if estDistanceMethod == 0:
+        if paramEstDistanceMethod == 0:
             medianDepth = np.mean(depthCropVec)
-        elif estDistanceMethod == 1:
+        elif paramEstDistanceMethod == 1:
             medianDepth = np.median(depthCropVec)
-        elif estDistanceMethod == 2:
+        elif paramEstDistanceMethod == 2:
             medianDepth = np.percentile(depthCropVec,10)
         else:
             raise ValueError('Unknown method for estimate distance selected, set estDistanceMethod to either 0,1 or 2')
@@ -133,11 +143,6 @@ def callback_bb(image, info, depth, bounding_boxes):
 #        print("ray_tl: ", ray_tl,"PointInSpace",xyzPoint_tl)
 #        print("ray_br: ", ray_br,"PointInSpace",xyzPoint_br)
 #        print("Width:",bbWidth,"Height",bbHeight,"Position_xyz",bbPosition)        
-        
-        ## RGB image
-        bbCropRGB = bbCoord_FromNormalized2Real(bounding_box,cv_image.shape)
-        cv2.rectangle(cv_image,(bbCropRGB[0],bbCropRGB[2]),(bbCropRGB[1],bbCropRGB[3]),(0,255,0),1)
-        cv2.putText(cv_image,str(np.round(bbPosition,2)), (bbCropRGB[0],bbCropRGB[2]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255),2)        
 
         marker.id = bb_id
         marker.scale.x = bbWidth
@@ -151,55 +156,43 @@ def callback_bb(image, info, depth, bounding_boxes):
         marker.color.a = bounding_box.prob # Confidence
         if bounding_box.objectType == 0: # Human
             marker.ns = os.path.join(topicParts[0], "human")
-            colorRgb = [1.0, 0.0, 0.0]
+            colorRgb = (1.0, 0.0, 0.0)
         elif bounding_box.objectType == 1: # Other
             marker.ns = os.path.join(topicParts[0], "other")
-            colorRgb = [0.0, 1.0, 1.0]
+            colorRgb = (0.0, 1.0, 1.0)
         
         elif bounding_box.objectType == 2: # Unknown (typically not to be dangered)
             marker.ns = os.path.join(topicParts[0], "unknown")
-            colorRgb = [0.0, 1.0, 1.0]
+            colorRgb = (0.0, 1.0, 1.0)
         else:
             marker.ns = os.path.join(topicParts[0], "bad")
-            colorRgb = [0.0, 0.0, 1.0]
+            colorRgb = (0.0, 0.0, 1.0)
         marker.color.r = colorRgb[0]
         marker.color.g = colorRgb[1]
         marker.color.b = colorRgb[2]        
-        
+
+        ## RGB image
+        if paramVisualizeBoundingboxes == True:
+            bbCropRGB = bbCoord_FromNormalized2Real(bounding_box,cv_image.shape)
+            cv2.rectangle(cv_image,(bbCropRGB[0],bbCropRGB[2]),(bbCropRGB[1],bbCropRGB[3]),(0,255,0),1)
+            cv2.putText(cv_image,str(np.round(bbPosition,2)), (bbCropRGB[0],bbCropRGB[2]), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)                
+
         # Make marker for each bounding box.         
         markerArray.markers.append(marker)
         bb_id = bb_id+1
+
     pub_bb.publish(markerArray)
     
-    #print("END: MARKER MARKER MARKER MARKER MARKER MARKER") 
-    
-    cv2.imshow('image',cv_image)
-    cv2.waitKey(1)
-    
-        
-        
-    print('Synchronized image and bounding boxes')
+    if paramVisualizeBoundingboxes == True:
+        image_message = bridge.cv2_to_imgmsg(cv_image, encoding="passthrough")
+        topicVisualizeOut.publish(image_message)
 
-
-
-
-#ts = message_filters.TimeSynchronizer([image_sub, info_sub], 10)
-#ts.registerCallback(callback)
 
 ts_bb = message_filters.TimeSynchronizer([image_sub,info_sub, depth_sub, bb_sub], 10)
 ts_bb.registerCallback(callback_bb)
 
-
 # main
 def main():
-    
-#    for iTopic in range(0,len(topics)): 
-#        strParts = topics[iTopic].split('/')
-#        topicOutName = '/ism/' + strParts[2] + '/' + strParts[3] + '/' + strParts[4] + '/'
-#        print 'image2ism    is subscriping to topic "', topics[iTopic], '" and publishing "', topicOutName, '"'
-#        rospy.Subscriber(topics[iTopic], Image, callbackDetectionImageReceived, queue_size=1)
-    
-    #rospy.Timer(rospy.Duration(timeBetweenEvaluation), EvaluateHumanAwareness)
     rospy.spin()
 
 if __name__ == '__main__':
