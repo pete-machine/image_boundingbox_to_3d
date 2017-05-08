@@ -72,40 +72,21 @@ def callback_bb(image, info, depth, bounding_boxes):
         cv_image = bridge.imgmsg_to_cv2(image, desired_encoding="passthrough")
     cv_depth = bridge.imgmsg_to_cv2(depth, desired_encoding="passthrough")
     
-#    # ONLY FOR TESTING    
-#    if len(bounding_boxes.boundingboxes) > 0: 
-#        print("STORE DATA")
-#        dirImage = "/home/pistol/Code/ros_workspaces/private/src/image_boundingbox_to_3d/testRGB.jpg";
-#        dirDepth = '/home/pistol/Code/ros_workspaces/private/src/image_boundingbox_to_3d/testDepth.dat';
-#        dirBoundingBox = '/home/pistol/Code/ros_workspaces/private/src/image_boundingbox_to_3d/testBoundingBox.dat';
-#        cv2.imwrite(dirImage , cv_image );
-#        with open(dirDepth, 'wb') as outfile:
-#            p.dump(cv_depth, outfile, protocol=p.HIGHEST_PROTOCOL)
-#        with open(dirBoundingBox, 'wb') as outfile:
-#            p.dump(bounding_boxes, outfile, protocol=p.HIGHEST_PROTOCOL)
-#    
-#        cv_image = cv2.imread(dirImage)
-#        cv_depth = p.load(open(dirDepth,"rb"))
-#        bounding_boxes = p.load(open(dirBoundingBox,"rb"))
+    # Construct Marker (single bounding box) and MarkerArray (all bounding boxes in an image)
     markerArray = MarkerArray()
     marker = Marker()
     marker.header = image.header
     marker.lifetime = rospy.Duration(1) # One second
     marker.type = marker.CYLINDER
     marker.action = marker.ADD
-    #marker.action = marker.DELETEALL
     
+    # To visualize all bounding boxes in an image. They need unique ids. 
+    # The id is incremented for each bounding boxes in an image.
     bb_id = 0
-    #dimImage = cv_depth.shape
+    
     for idx, bounding_box in enumerate(bounding_boxes.boundingboxes): 
         ## Depth image        
         bbCropDepth = bbCoord_FromNormalized2Real(bounding_box,cv_depth.shape)
-        
-        
-#        bbPoints = [np.array([bounding_box.x,bounding_box.y]),
-#                    np.array([bounding_box.x,bounding_box.y+bounding_box.h]),
-#                    np.array([bounding_box.x+bounding_box.w,bounding_box.y+bounding_box.h]),
-#                    np.array([bounding_box.x+bounding_box.w,bounding_box.y])]
         
         # Crop out depth information from image. 
         depthCrop = cv_depth[bbCropDepth[2]:bbCropDepth[3],bbCropDepth[0]:bbCropDepth[1]];
@@ -113,6 +94,13 @@ def callback_bb(image, info, depth, bounding_boxes):
         
         # Get only valid depth values
         depthCropVec = depthCropVec[~np.isnan(depthCropVec)]
+        
+#        medianDepth = np.mean(depthCropVec)
+#        print("EstimatedDistance(mean)",medianDepth)
+#        medianDepth = np.median(depthCropVec)
+#        print("EstimatedDistance(median)",medianDepth)
+#        medianDepth = np.percentile(depthCropVec,10)
+#        print("EstimatedDistance(10% percentile)",medianDepth)
         
         if paramEstDistanceMethod == 0:
             medianDepth = np.mean(depthCropVec)
@@ -136,13 +124,6 @@ def callback_bb(image, info, depth, bounding_boxes):
         bbWidth = xyzPoint_br[0]-xyzPoint_tl[0]
         bbHeight = xyzPoint_br[1]-xyzPoint_tl[1] 
         bbPosition = np.array([xyzPoint_tl[0]+bbWidth/2,xyzPoint_br[1],(xyzPoint_tl[2]+xyzPoint_br[2])/2]) # x,y,z
-        
-#        print("bbCropDepth",bbCropDepth)
-#        print("Mean",np.mean(depthCropVec))
-#        print("Median",medianDepth)
-#        print("ray_tl: ", ray_tl,"PointInSpace",xyzPoint_tl)
-#        print("ray_br: ", ray_br,"PointInSpace",xyzPoint_br)
-#        print("Width:",bbWidth,"Height",bbHeight,"Position_xyz",bbPosition)        
 
         marker.id = bb_id
         marker.scale.x = bbWidth
@@ -185,7 +166,7 @@ def callback_bb(image, info, depth, bounding_boxes):
     
     if paramVisualizeBoundingboxes == True:
         image_message = bridge.cv2_to_imgmsg(cv_image, encoding="passthrough")
-        topicVisualizeOut.publish(image_message)
+        pub_image_visualize.publish(image_message)
 
 
 ts_bb = message_filters.TimeSynchronizer([image_sub,info_sub, depth_sub, bb_sub], 10)
@@ -197,127 +178,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-#from collections import namedtuple
-#from std_msgs.msg import Float64MultiArray
-#from std_msgs.msg import UInt16
-#from sensor_msgs.msg import Image
-#from nav_msgs.msg import OccupancyGrid
-#import sys
-#sys.path.append("/usr/lib/python2.7/dist-packages")
-#import cv2
-#from cv_bridge import CvBridge, CvBridgeError
-#import numpy as np
-#from geometry_msgs.msg import Pose, Point, Quaternion
-#from ismFunctions import inversePerspectiveMapping, image2ogm
-#
-#rospy.init_node('image2ism', anonymous=True)
-#nodeName = rospy.get_name()
-#print "NodeName:", nodeName
-##objectTypeInt = rospy.get_param(nodeName+'/objectTypeInt', 1000) # 1000 is not specified. 0-19 is pascal classes. 20 is the pedestrian detector
-#topicsInName = rospy.get_param(nodeName+'/topicIns', 'UnknownInputTopic') # 1000 is not specified. 0-19 is pascal classes. 20 is the pedestrian detector
-#imageWidth = rospy.get_param(nodeName+'/imageWidth', 800) 
-#imageHeight = rospy.get_param(nodeName+'/imageHeight', 600) 
-#cam_xTranslation = rospy.get_param(nodeName+'/cam_xTranslation', 0) 
-#cam_yTranslation = rospy.get_param(nodeName+'/cam_yTranslation', 0) 
-#cam_zTranslation = rospy.get_param(nodeName+'/cam_zTranslation', 1.5)
-#cam_pitch = rospy.get_param(nodeName+'/cam_pitch', 0.349)  #20*np.pi/180
-#cam_yaw = rospy.get_param(nodeName+'/cam_yaw', 0.1745) # 10*pi/180
-#cam_FOV = rospy.get_param(nodeName+'/cam_FOV', 0.349) # 20*pi/180
-#grid_resolution = rospy.get_param(nodeName+'/grid_resolution', 0.05) # 10*pi/180
-#grid_xSizeInM = rospy.get_param(nodeName+'/grid_xSizeInM', -1.0) # For values <0 length of X is scaled automatically
-#grid_ySizeInM = rospy.get_param(nodeName+'/grid_ySizeInM', -1.0) # For values <0 length of Y is scaled automatically    
-#    
-#(Xvis, Yvis,rHorizon) = inversePerspectiveMapping(imageWidth, imageHeight, cam_xTranslation, cam_yTranslation, cam_zTranslation, cam_pitch, cam_yaw, cam_FOV);
-#
-#topics = topicsInName.split(' ')
-#print topics
-#pubImageObjs = list()
-#pubImageObjsDictionary = dict()
-#for iTopic in range(0,len(topics)): 
-#    strParts = topics[iTopic].split('/')
-#    topicOutName = '/ism/' + strParts[2] + '/' + strParts[3] + '/' + strParts[4] + '/'
-#    # DICTIONARY IS USED: PUBLISHER IS RETURNED USING TOPIC INPUT NAME.
-#    pubImageObjsDictionary[topics[iTopic]] = rospy.Publisher(topicOutName, OccupancyGrid, queue_size=1)
-#    
-#bridge = CvBridge()
-#
-#vectorLength = 6
-#def callbackDetectionImageReceived(data):
-#    cv_image = bridge.imgmsg_to_cv2(data, "mono8")
-#    cv_image = cv2.resize(cv_image,(imageWidth, imageHeight))
-#    #cv_image = cv2.imread('/home/repete/blank_ws/src/image_inverse_sensor_model/src/tmpImage.png',0)
-#    # Hack
-#    
-#    strParts = data.header.frame_id.split('/')
-#    objectType = strParts[-1]
-#    if objectType == 'human':
-#        objectExtent = 0.5
-#    elif objectType == 'unknown':
-#        objectExtent = 1.0
-#    elif objectType == 'vehicle':
-#        objectExtent = 2.0
-##        if(strParts[-2] == 'semantic_segmentation'):
-##            cv2.imwrite("/home/repete/Desktop/TmpImages/image" + str(data.header.seq) + ".png", cv_image);
-#    elif objectType == 'water':
-#        objectExtent = 0.0
-#    elif objectType == 'grass':
-#
-#        objectExtent = 0.0
-#    elif objectType == 'ground':
-#        objectExtent = 0.0
-#    elif objectType == 'shelterbelt':
-#        objectExtent = 1.5
-#    elif objectType == 'anomaly':
-#        objectExtent = 0.5
-#    elif objectType == 'heat':
-#        objectExtent = 0.5   
-#    else:
-#        objectExtent = 0.0
-#        
-#    #(Xvis, Yvis) = inversePerspectiveMapping(cv_image.shape[1], cv_image.shape[0], rHorizon, 0, 0, 1.5, 20*np.pi/180, 10*np.pi/180, 20*np.pi/180);
-#    #print objectType, objectExtent
-#    #tStart = time.time()
-#    grid, nGridX, nGridY, dist_x1, dist_y1,empty = image2ogm(Xvis,Yvis,cv_image,rHorizon,grid_xSizeInM,grid_ySizeInM,grid_resolution,objectExtent)
-#    #print "Elapsed on Image2ism: ", time.time()-tStart
-#    #image_message = bridge.cv2_to_imgmsg(grid, encoding="mono8")
-#    #pubImage.publish(image_message)
-#    
-#    grid_msg = OccupancyGrid()
-#    grid_msg.header.stamp = rospy.Time.now()
-#    grid_msg.header.frame_id = "base_link_mount" 
-#    grid_msg.info.resolution = grid_resolution
-#    grid_msg.info.width = nGridX
-#    grid_msg.info.height = nGridY
-##    origin_x = dist_x1+cam_xTranslation;
-##    origin_y = dist_y1+cam_yTranslation;
-##    print dist_x1, dist_y1
-#    origin_x = dist_x1
-#    origin_y = dist_y1
-#    origin_z = 0;    
-#    grid_msg.info.origin = Pose(Point(origin_x, origin_y, origin_z),Quaternion(0, 0, 0, 1))
-#    grid_msg.data = grid.flatten()
-#    # print "Sequence value", data.header.frame_id
-#    # HACK: LOADS THE OBJECT TYPE FROM THE FRAME ID:
-#    #pubImageObjs[0].publish(grid_msg)
-#    #print "data.header.frame_id:", data.header.frame_id, "objectType: ", objectType, "grid_msg.data.shape", grid_msg.data.shape, "pubImageObjsDictionary.keys()", pubImageObjsDictionary.keys()
-#    pubImageObjsDictionary[data.header.frame_id].publish(grid_msg)
-#
-#
-#
-## main
-#def main():
-#    for iTopic in range(0,len(topics)): 
-#        strParts = topics[iTopic].split('/')
-#        topicOutName = '/ism/' + strParts[2] + '/' + strParts[3] + '/' + strParts[4] + '/'
-#        print 'image2ism    is subscriping to topic "', topics[iTopic], '" and publishing "', topicOutName, '"'
-#        rospy.Subscriber(topics[iTopic], Image, callbackDetectionImageReceived, queue_size=1)
-#    
-#    #rospy.Timer(rospy.Duration(timeBetweenEvaluation), EvaluateHumanAwareness)
-#    rospy.spin()
-#
-#
-#if __name__ == '__main__':
-#    main()

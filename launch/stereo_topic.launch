@@ -1,12 +1,5 @@
 <?xml version="1.0"?>
 <launch>
-<!-- Show raw  
-	<node name="image_raw" pkg="image_view" type="image_view" respawn="false" output="screen">
-		<remap from="image" to="/Multisense/left/image_rect_color"/>
-		<param name="autosize" value="false" />
-	</node>
--->
-
 	<!-- Semantic Segmentation node  -->
 	<node type="image_bbox_to_3d_stereo.py" name="imageBBoxTo3D_Stereo" pkg="image_boundingbox_to_3d" respawn="true" output="screen">
 		<param name="topicCamImage" value="/Multisense/left/image_rect_color" />
@@ -17,19 +10,6 @@
 		<param name="topicVisualizeOut" value="/yolo/BBox3dImage/Multisense" />
 
 		<param name="estDistanceMethod" value="2" /> <!-- Select either 0: mean, 1: median, 2: 10%-percentile -->
-		<param name="visualizeBoundingboxes" value="True" /> <!-- Select either False: No visualization topic is published, True: A image for visualizing bounding boxes are published  -->
-
-
-		<!-- Select GPU device, negative values selects cpu 
-		<param name="imgDimWidth" value="512" />
-		<param name="imgDimHeight" value="217" />
-		<param name="gpuDevice" value="3" /> 
-
-		<param name="dirModelDescription" value="$(find fcn8_ros)/models/deploy.prototxt" />
-		<param name="dirModelVaules" value="$(find fcn8_ros)/models/pascalcontext-fcn8s-heavy.caffemodel" />
-		<param name="dirTestImage" value="$(find fcn8_ros)/src/Street2.jpg" />
-		<param name="dirRemapping" value="$(find fcn8_ros)/remappingObjectTypes.mat" />
-		-->
+		<param name="visualizeBoundingboxes" value="False" /> <!-- Select either False: No visualization topic is published, True: A image for visualizing bounding boxes are published  -->
 	</node>
-
 </launch>
