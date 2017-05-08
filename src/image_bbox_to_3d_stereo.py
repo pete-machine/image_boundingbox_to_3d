@@ -131,12 +131,12 @@ def callback_bb(image, info, depth, bounding_boxes):
         marker.scale.z = bbHeight
         
         marker.pose.orientation.w = 1.0
-        #marker.pose.position.x = bbPosition[0]
-        #marker.pose.position.y = bbPosition[2]
-        #marker.pose.position.z = bbPosition[1]
-        marker.pose.position.x = bbPosition[1]
-        marker.pose.position.y = -bbPosition[0]
-        marker.pose.position.z = -bbPosition[2]
+        marker.pose.position.x = bbPosition[0]
+        marker.pose.position.y = bbPosition[2]
+        marker.pose.position.z = bbPosition[1]
+        #marker.pose.position.x = bbPosition[1]
+        #marker.pose.position.y = -bbPosition[0]
+        #marker.pose.position.z = -bbPosition[2]
         marker.color.a = bounding_box.prob # Confidence
         if bounding_box.objectType == 0: # Human
             marker.ns = os.path.join(topicParts[0], "human")
