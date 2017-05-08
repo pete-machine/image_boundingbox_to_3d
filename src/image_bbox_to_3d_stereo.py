@@ -76,6 +76,7 @@ def callback_bb(image, info, depth, bounding_boxes):
     markerArray = MarkerArray()
     marker = Marker()
     marker.header = image.header
+    #marker.header.frame_id = "Multisense/left_camera_frame"
     marker.lifetime = rospy.Duration(1) # One second
     marker.type = marker.CYLINDER
     marker.action = marker.ADD
@@ -130,13 +131,15 @@ def callback_bb(image, info, depth, bounding_boxes):
         marker.scale.y = bbWidth
         marker.scale.z = bbHeight
         
-        marker.pose.orientation.w = 1.0
-        marker.pose.position.x = bbPosition[0]
-        marker.pose.position.y = bbPosition[2]
-        marker.pose.position.z = bbPosition[1]
-        #marker.pose.position.x = bbPosition[1]
-        #marker.pose.position.y = -bbPosition[0]
-        #marker.pose.position.z = -bbPosition[2]
+        
+	marker.pose.position.x = bbPosition[0]
+        marker.pose.position.y = bbPosition[1]
+        marker.pose.position.z = bbPosition[2]
+	marker.pose.orientation.x = 0.0;
+	marker.pose.orientation.y = 0.0;
+	marker.pose.orientation.z = 0.0;
+	marker.pose.orientation.w = 1.0;
+
         marker.color.a = bounding_box.prob # Confidence
         if bounding_box.objectType == 0: # Human
             marker.ns = os.path.join(topicParts[0], "human")
