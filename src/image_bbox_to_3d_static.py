@@ -4,6 +4,7 @@ import rospy
 import numpy as np
 import cv2 
 import os
+import copy
 from cv_bridge import CvBridge
 import message_filters
 #from image_geometry import PinholeCameraModel
@@ -67,16 +68,17 @@ def callback_bb(image, info, bounding_boxes):
     #if paramVisualizeBoundingboxes == True:
     cv_image = bridge.imgmsg_to_cv2(image, desired_encoding="passthrough")
 
+    # Construct Marker (single bounding box) and MarkerArray (all bounding boxes in an image)
     markerArray = MarkerArray()
     marker = Marker()
     marker.header = image.header
-    marker.lifetime = rospy.Duration(1) # One second
-    #marker.type = marker.CYLINDER
-    marker.type = marker.CUBE
-    marker.action = marker.ADD
-    #marker.action = marker.DELETEALL
+    marker.lifetime = rospy.Duration(1.0) # One second
+    marker.type = marker.CYLINDER
+    marker.action = marker.DELETEALL
+    marker.id = 0
+    markerArray.markers.append(copy.deepcopy(marker))
     
-    bb_id = 0
+    marker.action = marker.ADD
     #dimImage = cv_depth.shape
     for idx, bounding_box in enumerate(bounding_boxes.boundingboxes): 
         
@@ -118,7 +120,7 @@ def callback_bb(image, info, bounding_boxes):
         bbPosition = np.array([xyzPoint_tl[0]+bbWidth/2,xyzPoint_br[1],(xyzPoint_tl[2]+xyzPoint_br[2])/2]) # x,y,z
         
         
-        marker.id = bb_id
+        marker.id = idx
         marker.scale.x = bbWidth
         marker.scale.y = bbWidth
         marker.scale.z = bbHeight
@@ -153,8 +155,7 @@ def callback_bb(image, info, bounding_boxes):
             cv2.putText(cv_image,str(np.round(bbPosition,2)), (bbCropRGB[0],bbCropRGB[2]), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)                
 
         # Make marker for each bounding box.         
-        markerArray.markers.append(marker)
-        bb_id = bb_id+1
+        markerArray.markers.append(copy.deepcopy(marker))
 
     pub_bb.publish(markerArray)
     
