@@ -91,7 +91,7 @@ def callback_bb(image, info, depth, bounding_boxes):
     marker.type = marker.CYLINDER
     marker.action = marker.DELETEALL
     marker.id = 0
-    markerArray.markers.append(copy.copy(marker))
+    markerArray.markers.append(copy.deepcopy(marker))
     
     marker.action = marker.ADD
     
