@@ -4,6 +4,9 @@ import rospy
 import numpy as np
 import cv2 
 import os
+import tf
+import tf2_ros
+import copy
 from cv_bridge import CvBridge
 import message_filters
 #from image_geometry import PinholeCameraModel
@@ -13,6 +16,7 @@ from sensor_msgs.msg import Image, CameraInfo
 from msg_boundingbox.msg import Boundingbox, Boundingboxes
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
+from geometry_msgs.msg import Pose
 
 rospy.init_node('get_boundingbox_distance', anonymous=False)
 nodeName = rospy.get_name()
@@ -30,6 +34,8 @@ topicCamInfo = rospy.get_param(nodeName+'/topicCamInfo', nodeName+'UnknownInputT
 topicDepth = rospy.get_param(nodeName+'/topicDepth', nodeName+'UnknownInputTopic') 
 topicBBoxIn = rospy.get_param(nodeName+'/topicBBoxIn', nodeName+'UnknownInputTopic') 
 
+baseFrameId = rospy.get_param(nodeName+'/baseFrameId', nodeName+'UnknownFrameId') 
+
 # Get subscripers.
 image_sub = message_filters.Subscriber(topicCamImg, Image)
 info_sub = message_filters.Subscriber(topicCamInfo, CameraInfo)
@@ -46,7 +52,9 @@ pub_image_visualize = rospy.Publisher(topicVisualizeOut, Image , queue_size=0)
 
 topicParts = [strPart for strPart in topicBBoxIn.split('/') if strPart is not '']
 
-
+tfBuffer = tf2_ros.Buffer()
+#listener = tf.TransformListener(tfBuffer)
+listener = tf2_ros.TransformListener(tfBuffer)
 
 bridge = CvBridge()
 cam_model = image_geometry.PinholeCameraModel()
@@ -54,8 +62,9 @@ cam_model = image_geometry.PinholeCameraModel()
 #def callback(image, camera_info):
 #    print('Base')
 
-#pub_bb = rospy.Publisher('/det/Multisense/bboxes', Marker , queue_size=0)
 
+#pub_bb = rospy.Publisher('/det/Multisense/bboxes', Marker , queue_size=0)
+pose = Pose()
 def bbCoord_FromNormalized2Real(bounding_box,dimImage):
     bb = np.array([bounding_box.x*dimImage[1], bounding_box.y*dimImage[0], bounding_box.w*dimImage[1],bounding_box.h*dimImage[0]]).astype(int)
     bbCrop = np.array([bb[0],bb[0]+bb[2],bb[1],bb[1]+bb[3]]);
@@ -67,6 +76,7 @@ def bbCoord_FromNormalized2Real(bounding_box,dimImage):
     return bbCrop;
     
 def callback_bb(image, info, depth, bounding_boxes):
+    
     cam_model.fromCameraInfo(info)    
     if paramVisualizeBoundingboxes == True:
         cv_image = bridge.imgmsg_to_cv2(image, desired_encoding="passthrough")
@@ -77,13 +87,27 @@ def callback_bb(image, info, depth, bounding_boxes):
     marker = Marker()
     marker.header = image.header
     #marker.header.frame_id = "Multisense/left_camera_frame"
-    marker.lifetime = rospy.Duration(1) # One second
+    marker.lifetime = rospy.Duration(1.0) # One second
     marker.type = marker.CYLINDER
+    marker.action = marker.DELETEALL
+    marker.id = 0
+    markerArray.markers.append(copy.copy(marker))
+    
     marker.action = marker.ADD
+    
+    
+    if pose.orientation.w == 0:
+        try:
+            trans = tfBuffer.lookup_transform( marker.header.frame_id,baseFrameId, rospy.Time())
+            pose.orientation = trans.transform.rotation
+            #print("pose.orientation:",pose.orientation)
+        except Exception as e: #(tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            #print("Except",e.message,e.args)
+            pose.orientation.w = 1
+        pass
     
     # To visualize all bounding boxes in an image. They need unique ids. 
     # The id is incremented for each bounding boxes in an image.
-    bb_id = 0
     
     for idx, bounding_box in enumerate(bounding_boxes.boundingboxes): 
         ## Depth image        
@@ -126,20 +150,18 @@ def callback_bb(image, info, depth, bounding_boxes):
         bbHeight = xyzPoint_br[1]-xyzPoint_tl[1] 
         bbPosition = np.array([xyzPoint_tl[0]+bbWidth/2,xyzPoint_br[1],(xyzPoint_tl[2]+xyzPoint_br[2])/2]) # x,y,z
 
-        marker.id = bb_id
+        
         marker.scale.x = bbWidth
         marker.scale.y = bbWidth
         marker.scale.z = bbHeight
         
         
-	marker.pose.position.x = bbPosition[0]
-        marker.pose.position.y = bbPosition[1]
+        marker.pose.position.x = bbPosition[0]
+        marker.pose.position.y = bbPosition[1]-bbHeight/2
         marker.pose.position.z = bbPosition[2]
-	marker.pose.orientation.x = 0.0;
-	marker.pose.orientation.y = 0.0;
-	marker.pose.orientation.z = 0.0;
-	marker.pose.orientation.w = 1.0;
 
+        marker.pose.orientation = pose.orientation
+        marker.id = idx
         marker.color.a = bounding_box.prob # Confidence
         if bounding_box.objectType == 0: # Human
             marker.ns = os.path.join(topicParts[0], "human")
@@ -147,13 +169,13 @@ def callback_bb(image, info, depth, bounding_boxes):
         elif bounding_box.objectType == 1: # Other
             marker.ns = os.path.join(topicParts[0], "other")
             colorRgb = (0.0, 1.0, 1.0)
-        
         elif bounding_box.objectType == 2: # Unknown (typically not to be dangered)
             marker.ns = os.path.join(topicParts[0], "unknown")
             colorRgb = (0.0, 1.0, 1.0)
         else:
             marker.ns = os.path.join(topicParts[0], "bad")
             colorRgb = (0.0, 0.0, 1.0)
+            
         marker.color.r = colorRgb[0]
         marker.color.g = colorRgb[1]
         marker.color.b = colorRgb[2]        
@@ -165,8 +187,8 @@ def callback_bb(image, info, depth, bounding_boxes):
             cv2.putText(cv_image,str(np.round(bbPosition,2)), (bbCropRGB[0],bbCropRGB[2]), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)                
 
         # Make marker for each bounding box.         
-        markerArray.markers.append(marker)
-        bb_id = bb_id+1
+        markerArray.markers.append(copy.deepcopy(marker))
+        #
 
     pub_bb.publish(markerArray)
     
@@ -180,6 +202,21 @@ ts_bb.registerCallback(callback_bb)
 
 # main
 def main():
+
+#    rate = rospy.Rate(10.0)
+#    while not rospy.is_shutdown():
+#        try:
+#    	
+#            #print("listener.allFramesAsString()",listener.allFramesAsString())
+#            #(trans,rot) = listener.lookupTransform('cam_stereo_left_frame', 'cam_thermal_frame', rospy.Time.now())
+#            trans = tfBuffer.lookup_transform('velodyne', 'cam_thermal_frame', rospy.Time())
+#            print trans
+#            #print("(trans,rot):",(trans,rot))
+#        except Exception as e: #(tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+#            print("Except",e.message,e.args)
+#            pass
+#            
+#        rate.sleep()
     rospy.spin()
 
 if __name__ == '__main__':
