@@ -97,15 +97,23 @@ def callback_bb(image, info, depth, bounding_boxes):
     marker.action = marker.ADD
     
     
-    if pose.orientation.w == 0:
-        try:
-            trans = tfBuffer.lookup_transform( marker.header.frame_id,baseFrameId, rospy.Time())
-            pose.orientation = trans.transform.rotation
-            #print("pose.orientation:",pose.orientation)
-        except Exception as e: #(tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            #print("Except",e.message,e.args)
-            pose.orientation.w = 1
-        pass
+    #if pose.orientation.w == 0:
+    try:
+        # Bug-fix. To remove the first '/' in frame. E.g. '/Multisensor/blah' --> 'Multisensor/blah' 
+        strParts = marker.header.frame_id.split('/')
+        if strParts[0] is '':
+            headFrame = str.join('/',strParts[1:])
+        else:
+            headFrame = marker.header.frame_id
+
+        trans = tfBuffer.lookup_transform( headFrame,baseFrameId, rospy.Time())
+        #trans = tfBuffer.lookup_transform( 'Multisense/left_camera_optical_frame','velodyne', rospy.Time())
+        pose.orientation = trans.transform.rotation
+        #print("pose.orientation:",pose.orientation)
+    except Exception as e: #(tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+        #print("Except",e.message,e.args)
+        pose.orientation.w = 1
+    pass
     
     # To visualize all bounding boxes in an image. They need unique ids. 
     # The id is incremented for each bounding boxes in an image.
