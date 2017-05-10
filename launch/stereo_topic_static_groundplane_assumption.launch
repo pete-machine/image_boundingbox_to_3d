@@ -4,10 +4,11 @@
 	<node type="image_bbox_to_3d_static.py" name="imageBBoxTo3D_Static" pkg="image_boundingbox_to_3d" respawn="true" output="screen">
 		<param name="topicCamImage" value="/Multisense/left/image_rect_color" />
 		<param name="topicCamInfo" value="/Multisense/left/image_rect_color/camera_info" />
-		<param name="topicBBoxIn" value="/yolo/BBox/Multisense" />
+		<param name="topicBBoxIn" value="/det/Multisense/yolo/BBoxes2d" />
 
-		<param name="topicBBoxOut" value="/yolo/BBox3d_static/Multisense" />
-		<param name="topicVisualizeOut" value="/yolo/BBox3dImage_static/Multisense" />
+		<param name="topicBBoxOut" value="/det/Multisense/yolo/BBoxes3d" />
+		<param name="visualizeBoundingboxes" value="False" /> <!-- Select either False: An image (topicVisualizeOut) is NOT published, True: An image (topicVisualizeOut) is published  -->
+		<param name="topicVisualizeOut" value="/det/Multisense/yolo/bboxesImage" />
 
 		<param name="cam_height" value="2.056" /> 
 		<param name="cam_tilt" value="0.33233" /> 

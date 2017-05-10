@@ -45,7 +45,8 @@ topicVisualizeOut = rospy.get_param(nodeName+'/topicVisualizeOut', nodeName+'/Im
 
 # Publishers
 pub_bb = rospy.Publisher(topicBBoxOut, MarkerArray , queue_size=0)
-pub_image_visualize = rospy.Publisher(topicVisualizeOut, Image , queue_size=0)
+if paramVisualizeBoundingboxes == True:
+	pub_image_visualize = rospy.Publisher(topicVisualizeOut, Image , queue_size=0)
 
 topicParts = [strPart for strPart in topicBBoxIn.split('/') if strPart is not '']
 
