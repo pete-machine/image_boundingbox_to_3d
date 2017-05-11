@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- Semantic Segmentation node  -->
+	<node type="image_bbox_to_3d_lidar_node" name="imageBBoxTo3D_LiDAR" pkg="image_boundingbox_to_3d" respawn="true" output="screen">
+<!--
+		<param name="topicCamImage" value="/Multisense/left/image_rect_color" />
+		<param name="topicCamInfo" value="/Multisense/left/image_rect_color/camera_info" />
+		<param name="topicLidarDepth" value="/velodyne_points" />
+		<param name="topicBBoxIn" value="/det/Multisense/yolo/BBoxes2d" />
+
+		<param name="topicBBoxOut" value="/det/Multisense/yolo/__BBoxes3d" />
+		<param name="visualizeBoundingboxes" value="False" /> 
+		<param name="topicVisualizeOut" value="/det/Multisense/yolo/__bboxesImage" />
+		<param name="baseFrameId" value="velodyne" />
+
+		<param name="estDistanceMethod" value="1" />  Select either 0: mean, 1: median, 2: 10%-percentile -->
+		
+	</node>
+</launch>

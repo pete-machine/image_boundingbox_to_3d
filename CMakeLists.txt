@@ -3,13 +3,18 @@ project(image_boundingbox_to_3d)
 
 ## Add support for C++11, supported in ROS Kinetic and newer
 # add_definitions(-std=c++11)
+find_package(PCL 1.8.0 REQUIRED)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  roscpp
   rospy
   std_msgs
+  sensor_msgs
+  velodyne_msgs
+  message_filters
 )
 
 ## System dependencies are found with CMake's conventions
@@ -117,6 +122,7 @@ catkin_package(
 # include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -124,15 +130,19 @@ include_directories(
 #   src/${PROJECT_NAME}/get_boundingbox_distance.cpp
 # )
 
-## Add cmake target dependencies of the library
-## as an example, code may need to be generated before libraries
-## either from message generation or dynamic reconfigure
-# add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/get_boundingbox_distance_node.cpp)
+## Declare a C++ executable
+#add_executable(${PROJECT_NAME}_node src/image_bbox_to_3d_lidar.cpp)
+add_executable(image_bbox_to_3d_lidar_node src/image_bbox_to_3d_lidar.cpp)
+
+## Add cmake target dependencies of the library
+## as an example, code may need to be generated before libraries
+## either from message generation or dynamic reconfigure
+add_dependencies(image_bbox_to_3d_lidar_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -145,9 +155,10 @@ include_directories(
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(${PROJECT_NAME}_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(image_bbox_to_3d_lidar_node
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
 
 #############
 ## Install ##
