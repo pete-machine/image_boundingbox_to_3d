@@ -11,7 +11,7 @@ import message_filters
 import image_geometry
 
 from sensor_msgs.msg import Image, CameraInfo
-from msg_boundingbox.msg import Boundingbox, Boundingboxes
+from boundingbox_msgs.msg import Boundingbox, Boundingboxes
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
 
