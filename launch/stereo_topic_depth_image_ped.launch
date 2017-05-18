@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
 	<!-- Semantic Segmentation node  -->
-	<node type="image_bbox_to_3d_stereo.py" name="imageBBoxTo3D_Stereo" pkg="image_boundingbox_to_3d" respawn="true" output="screen">
+	<node type="image_bbox_to_3d_stereo.py" name="imageBBoxTo3D_Stereo_ped" pkg="image_boundingbox_to_3d" respawn="true" output="screen">
 		<param name="topicCamImage" value="/Multisense/left/image_rect_color" />
 		<param name="topicCamInfo" value="/Multisense/left/image_rect_color/camera_info" />
 		<param name="topicDepth" value="/Multisense/depth" />
