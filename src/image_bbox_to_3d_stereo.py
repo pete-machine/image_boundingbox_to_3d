@@ -4,7 +4,6 @@ import rospy
 import numpy as np
 import cv2 
 import os
-import tf
 import tf2_ros
 import copy
 from cv_bridge import CvBridge
@@ -29,12 +28,13 @@ paramVisualizeBoundingboxes = rospy.get_param(nodeName+'/visualizeBoundingboxes'
 
 
 # Name of input topics from launch-file. 
-topicCamImg = rospy.get_param(nodeName+'/topicCamImage', nodeName+'UnknownInputTopic') 
-topicCamInfo = rospy.get_param(nodeName+'/topicCamInfo', nodeName+'UnknownInputTopic') 
-topicDepth = rospy.get_param(nodeName+'/topicDepth', nodeName+'UnknownInputTopic') 
-topicBBoxIn = rospy.get_param(nodeName+'/topicBBoxIn', nodeName+'UnknownInputTopic') 
+topicCamImg = rospy.get_param(nodeName+'/topicCamImage', nodeName+'UnknownInputTopic')
+topicCamInfo = rospy.get_param(nodeName+'/topicCamInfo', nodeName+'UnknownInputTopic')
+topicDepth = rospy.get_param(nodeName+'/topicDepth', nodeName+'UnknownInputTopic')
+topicBBoxIn = rospy.get_param(nodeName+'/topicBBoxIn', nodeName+'UnknownInputTopic')
 
-baseFrameId = rospy.get_param(nodeName+'/baseFrameId', nodeName+'UnknownFrameId') 
+baseFrameId = rospy.get_param(nodeName+'/baseFrameId', nodeName+'UnknownFrameId')
+algorithmName = rospy.get_param(nodeName+'/algorithmName', nodeName+'NotDefined')
 
 # Get subscripers.
 image_sub = message_filters.Subscriber(topicCamImg, Image)
@@ -172,19 +172,21 @@ def callback_bb(image, info, depth, bounding_boxes):
         marker.pose.orientation = pose.orientation
         marker.id = idx
         marker.color.a = bounding_box.prob # Confidence
+	
         if bounding_box.objectType == 0: # Human
-            marker.ns = os.path.join(topicParts[0], "human")
+            className = "human"
             colorRgb = (1.0, 0.0, 0.0)
         elif bounding_box.objectType == 1: # Other
-            marker.ns = os.path.join(topicParts[0], "other")
+            className = "other"
             colorRgb = (0.0, 1.0, 1.0)
         elif bounding_box.objectType == 2: # Unknown (typically not to be dangered)
-            marker.ns = os.path.join(topicParts[0], "unknown")
+            className = "unknown"
             colorRgb = (0.0, 1.0, 1.0)
         else:
-            marker.ns = os.path.join(topicParts[0], "bad")
+            className = "bad"
             colorRgb = (0.0, 0.0, 1.0)
-            
+
+        marker.ns = os.path.join(algorithmName, className)            
         marker.color.r = colorRgb[0]
         marker.color.g = colorRgb[1]
         marker.color.b = colorRgb[2]        
@@ -212,20 +214,6 @@ ts_bb.registerCallback(callback_bb)
 # main
 def main():
 
-#    rate = rospy.Rate(10.0)
-#    while not rospy.is_shutdown():
-#        try:
-#    	
-#            #print("listener.allFramesAsString()",listener.allFramesAsString())
-#            #(trans,rot) = listener.lookupTransform('cam_stereo_left_frame', 'cam_thermal_frame', rospy.Time.now())
-#            trans = tfBuffer.lookup_transform('velodyne', 'cam_thermal_frame', rospy.Time())
-#            print trans
-#            #print("(trans,rot):",(trans,rot))
-#        except Exception as e: #(tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-#            print("Except",e.message,e.args)
-#            pass
-#            
-#        rate.sleep()
     rospy.spin()
 
 if __name__ == '__main__':
