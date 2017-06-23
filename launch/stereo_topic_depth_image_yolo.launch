@@ -2,6 +2,7 @@
 <launch>
 	<!-- Semantic Segmentation node  -->
 	<node type="image_bbox_to_3d_stereo.py" name="imageBBoxTo3D_Stereo" pkg="image_boundingbox_to_3d" respawn="true" output="screen">
+		<param name="algorithmName" value="yolo" />
 		<param name="topicCamImage" value="/Multisense/left/image_rect_color" />
 		<param name="topicCamInfo" value="/Multisense/left/image_rect_color/camera_info" />
 		<param name="topicDepth" value="/Multisense/depth" />
@@ -13,6 +14,7 @@
 		<param name="baseFrameId" value="velodyne" />
 
 		<param name="estDistanceMethod" value="1" /> <!-- Select either 0: mean, 1: median, 2: 10%-percentile -->
+
 		
 	</node>
 </launch>
