@@ -33,7 +33,14 @@ topicDetImageIn = rospy.get_param(nodeName+'/topicDetImageIn', nodeName+'Unknown
 baseFrameId = rospy.get_param(nodeName+'/baseFrameId', nodeName+'UnknownFrameId')
 algorithmName = rospy.get_param(nodeName+'/algorithmName', nodeName+'NotDefined')
 
-threshold = 300.0
+
+# The expectedMinValue and expectedMaxValue 
+expectedMaxValue = rospy.get_param(nodeName+'/expected_max_value', 1.0)
+
+threshold = rospy.get_param(nodeName+'/threshold', 700.0)
+expectedMinValue = threshold
+
+#threshold = 300.0
 
 # Get subscripers.
 image_sub = message_filters.Subscriber(topicCamImg, Image)
@@ -89,7 +96,8 @@ def callback_image(image, info, depth, det_image):
         tmpBB.y = bbNor[0]
         tmpBB.w = np.diff(bbNor[2:])
         tmpBB.h = np.diff(bbNor[:2])
-        tmpBB.prob = np.max(imgConfidence[slicer])
+        prob = np.max(imgConfidence[slicer])
+        tmpBB.prob = (prob-expectedMinValue)/(expectedMaxValue-expectedMinValue)
         tmpBB.objectType = np.median(imgClass[slicer])
         tmpBB.objectName = 'anomaly'
         

@@ -2,18 +2,26 @@
 <launch>
 	<!-- Anomaly -->
 	<node type="image_det_to_3d_stereo.py" name="imageDetTo3D_Stereo" pkg="image_boundingbox_to_3d" respawn="true" output="screen">
+		<!-- Name of algorithm topics are received  -->
 		<param name="algorithmName" value="anomaly" />
+
+		<!-- Topics  -->
 		<param name="topicCamImage" value="/Multisense/left/image_rect_color" />
 		<param name="topicCamInfo" value="/Multisense/left/image_rect_color/camera_info" />
 		<param name="topicDepth" value="/Multisense/depth" />
 		<param name="topicDetImageIn" value="/det/Multisense/deepanomaly/anomaly" />
 
+
+		<!-- Visualization stuff  -->
 		<param name="topicBBoxOut" value="/det/Multisense/deepanomaly/BBoxes3d" />
-		<param name="visualizeBoundingboxes" value="True" /> <!-- Select either False: An image (topicVisualizeOut) is NOT published, True: An image (topicVisualizeOut) is published  -->
+		<param name="visualizeBoundingboxes" value="True" /> <!-- False: topicVisualizeOut is NOT published, True: topicVisualizeOut is published  -->
 		<param name="topicVisualizeOut" value="/det/Multisense/deepanomaly/bboxesImage" />
 		<param name="baseFrameId" value="velodyne" />
 
+		<!-- Algorithm settings  -->
 		<param name="estDistanceMethod" value="2" /> <!-- Select either 0: mean, 1: median, 2: 5%-percentile -->
+		<param name="threshold" value="700" /> 
+		<param name="expected_max_value" value="2000" /> <!-- Confidence is normalized to [0;1] from the range[threshold,expected_max_value]-->
 
 		
 	</node>
