@@ -96,8 +96,10 @@ def callback_image(image, info, depth, det_image):
         tmpBB.y = bbNor[0]
         tmpBB.w = np.diff(bbNor[2:])
         tmpBB.h = np.diff(bbNor[:2])
-        prob = np.max(imgConfidence[slicer])
-        tmpBB.prob = (prob-expectedMinValue)/(expectedMaxValue-expectedMinValue)
+        prob = np.max(imgConfidence[slicer]).astype(np.float)
+        tmpNormalized = (prob-expectedMinValue)/(expectedMaxValue-expectedMinValue)
+        tmpBB.prob = np.clip(tmpNormalized,0.0,1.0)
+        print "prob", prob, "Normalized", tmpNormalized , "NormalizedClipped", tmpBB.prob 
         tmpBB.objectType = np.median(imgClass[slicer])
         tmpBB.objectName = 'anomaly'
         
