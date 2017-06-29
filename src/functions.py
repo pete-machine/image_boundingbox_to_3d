@@ -129,7 +129,7 @@ def boundingboxTo3D(image, info, depth, bounding_boxes,pose,algorithmName,paramV
         if paramVisualizeBoundingboxes == True:
             bbCropRGB = bbCoord_FromNormalized2Real(bounding_box,cv_image.shape)
             cv2.rectangle(cv_image,(bbCropRGB[0],bbCropRGB[2]),(bbCropRGB[1],bbCropRGB[3]),(0,255,0),1)
-            cv2.putText(cv_image,className, (bbCropRGB[0],bbCropRGB[2]), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)                
+            cv2.putText(cv_image,className + ', p' + str(round(marker.color.a,2)), (bbCropRGB[0],bbCropRGB[2]), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)                
 
         # Make marker for each bounding box.         
         markerArray.markers.append(copy.deepcopy(marker))

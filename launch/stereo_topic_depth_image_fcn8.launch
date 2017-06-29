@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- Anomaly -->
+	<node type="image_det_to_3d_stereo.py" name="imageFcn8To3D_Stereo" pkg="image_boundingbox_to_3d" respawn="true" output="screen">
+		<!-- Name of detection algorithm -->
+		<param name="algorithmName" value="fcn8" />
+
+		<!-- Topics  -->
+		<param name="topicCamImage" value="/Multisense/left/image_rect_color" />
+		<param name="topicCamInfo" value="/Multisense/left/image_rect_color/camera_info" />
+		<param name="topicDepth" value="/Multisense/depth" />
+		<param name="topicDetImageIn" value="/det/Multisense/fcn8/detection_image" />
+
+
+		<!-- Visualization stuff  -->
+		<param name="topicBBoxOut" value="/det/Multisense/fcn8/BBoxes3d" />
+		<param name="visualizeBoundingboxes" value="True" /> <!-- False: topicVisualizeOut is NOT published, True: topicVisualizeOut is published  -->
+		<param name="topicVisualizeOut" value="/det/Multisense/fcn8/bboxesImage" />
+		<param name="baseFrameId" value="velodyne" />
+
+		<!-- Algorithm settings  -->
+		<param name="estDistanceMethod" value="1" /> <!-- Select either 0: mean, 1: median, 2: 5%-percentile -->
+		<param name="threshold" value="0.01" /> 
+		<param name="expected_max_value" value="255" /> <!-- Confidence is normalized to [0;1] from the range[threshold,expected_max_value]-->
+	</node>
+</launch>
