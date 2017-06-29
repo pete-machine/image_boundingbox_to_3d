@@ -19,6 +19,7 @@
 		<param name="baseFrameId" value="velodyne" />
 
 		<!-- Algorithm settings  -->
+		<param name="config_file" value="$(find image_boundingbox_to_3d)/cfg/det2bb_anomaly.cfg" />
 		<param name="estDistanceMethod" value="2" /> <!-- Select either 0: mean, 1: median, 2: 5%-percentile -->
 		<param name="threshold" value="700" /> 
 		<param name="expected_max_value" value="2000" /> <!-- Confidence is normalized to [0;1] from the range[threshold,expected_max_value]-->
