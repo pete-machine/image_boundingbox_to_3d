@@ -33,6 +33,16 @@ topicDetImageIn = rospy.get_param(nodeName+'/topicDetImageIn', nodeName+'Unknown
 baseFrameId = rospy.get_param(nodeName+'/baseFrameId', nodeName+'UnknownFrameId')
 algorithmName = rospy.get_param(nodeName+'/algorithmName', nodeName+'NotDefined')
 
+configFile = rospy.get_param(nodeName+'/config_file', 'cfg/bb2ismExample.cfg')
+
+configData = open(configFile,'r') 
+configText = configData.read()
+strsClassNumberAndName = [line for idx,line in enumerate(str(configText).split('\n')) if line is not '' and idx is not 0]
+pubOutputTopics = {}
+
+for strClass in strsClassNumberAndName:
+    strNumberAndClass = strClass.split(' ')
+    print 'Class: ',  int(strNumberAndClass[0]), ', ObjectType: ',  strNumberAndClass[1]
 
 # The expectedMinValue and expectedMaxValue 
 expectedMaxValue = rospy.get_param(nodeName+'/expected_max_value', 1.0)
@@ -70,15 +80,15 @@ bridge = CvBridge()
 def callback_image(image, info, depth, det_image):    
     imgConfidence = bridge.imgmsg_to_cv2(det_image.imgConfidence, desired_encoding="passthrough")
     imgClass = bridge.imgmsg_to_cv2(det_image.imgClass, desired_encoding="passthrough")
-    crop = det_image.crop
-    print "crop: ", crop
+    crop = det_image.crop    
+
+    bounding_boxes = Boundingboxes()    
     
     
     bwImg = imgConfidence>threshold
     blobs_labels,n = ndimage.measurements.label(bwImg)
     dim = bwImg.shape
-    slicers = ndimage.find_objects(blobs_labels)
-    bounding_boxes = Boundingboxes()
+    slicers = ndimage.find_objects(blobs_labels)    
     
     for slicer in slicers:
         
