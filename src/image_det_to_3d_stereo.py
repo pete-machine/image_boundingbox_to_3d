@@ -28,9 +28,13 @@ topicCamImg = rospy.get_param(nodeName+'/topicCamImage', nodeName+'UnknownInputT
 topicCamInfo = rospy.get_param(nodeName+'/topicCamInfo', nodeName+'UnknownInputTopic')
 topicDepth = rospy.get_param(nodeName+'/topicDepth', nodeName+'UnknownInputTopic')
 #topicBBoxIn = rospy.get_param(nodeName+'/topicBBoxIn', nodeName+'UnknownInputTopic')
-topicDetImageIn = rospy.get_param(nodeName+'/topicDetImageIn', nodeName+'UnknownInputTopic')
+topicDetImageInMultiClass = rospy.get_param(nodeName+'/topicDetImageInMultiClass', '')
+topicDetImageInSingleClass = rospy.get_param(nodeName+'/topicDetImageInSingleClass', '')
 
-baseFrameId = rospy.get_param(nodeName+'/baseFrameId', nodeName+'UnknownFrameId')
+if topicDetImageInMultiClass == '' and topicDetImageInSingleClass == '':
+    raise NameError('Either topicDetImageIn or topicDetImageIn2D should be defined in the launch script') 
+    
+targetFrame = rospy.get_param(nodeName+'/targetFrame', nodeName+'UnknownFrameId')
 algorithmName = rospy.get_param(nodeName+'/algorithmName', nodeName+'NotDefined')
 
 configFile = rospy.get_param(nodeName+'/config_file', 'cfg/bb2ismExample.cfg')
@@ -38,16 +42,17 @@ configFile = rospy.get_param(nodeName+'/config_file', 'cfg/bb2ismExample.cfg')
 configData = open(configFile,'r') 
 configText = configData.read()
 strsClassNumberAndName = [line for idx,line in enumerate(str(configText).split('\n')) if line is not '' and idx is not 0]
-pubOutputTopics = {}
+classNumberAndName = {}
 
 for strClass in strsClassNumberAndName:
     strNumberAndClass = strClass.split(' ')
-    print 'Class: ',  int(strNumberAndClass[0]), ', ObjectType: ',  strNumberAndClass[1]
+    #print 'Class: ',  int(strNumberAndClass[0]), ', ObjectType: ',  strNumberAndClass[1]
+    classNumberAndName[strNumberAndClass[1]] = int(strNumberAndClass[0])
 
 # The expectedMinValue and expectedMaxValue 
 expectedMaxValue = rospy.get_param(nodeName+'/expected_max_value', 1.0)
 
-threshold = rospy.get_param(nodeName+'/threshold', 700.0)
+threshold = rospy.get_param(nodeName+'/threshold', 0.0)
 expectedMinValue = threshold
 
 #threshold = 300.0
@@ -58,7 +63,14 @@ info_sub = message_filters.Subscriber(topicCamInfo, CameraInfo)
 depth_sub = message_filters.Subscriber(topicDepth, Image)
 #bb_sub = message_filters.Subscriber(topicBBoxIn, Boundingboxes)
 
-det_sub = message_filters.Subscriber(topicDetImageIn, ImageDetections)
+print "topicDetImageInSingleClass",topicDetImageInSingleClass, "topicDetImageInMultiClass", topicDetImageInMultiClass
+
+if topicDetImageInSingleClass == '':
+    print "topicDetImageInMultiClass"
+    det_sub3d = message_filters.Subscriber(topicDetImageInMultiClass, ImageDetections)
+else:
+    print "topicDetImageInSingleClass"
+    det_sub2d = message_filters.Subscriber(topicDetImageInSingleClass, Image)
 
 # Name of output topics from launch-file. 
 topicBBoxOut = rospy.get_param(nodeName+'/topicBBoxOut', nodeName+'/BBox3d') 
@@ -77,83 +89,117 @@ listener = tf2_ros.TransformListener(tfBuffer)
 bridge = CvBridge()
     
 # Convert to image to bounding boxes. 
-def callback_image(image, info, depth, det_image):    
-    imgConfidence = bridge.imgmsg_to_cv2(det_image.imgConfidence, desired_encoding="passthrough")
-    imgClass = bridge.imgmsg_to_cv2(det_image.imgClass, desired_encoding="passthrough")
-    crop = det_image.crop    
+def callback_imageMultiClass(image, info, depth, det_image3d):    
+    print "callback_imageMultiClass"
+    imgConfidence = bridge.imgmsg_to_cv2(det_image3d.imgConfidence, desired_encoding="passthrough")
+    imgClass = bridge.imgmsg_to_cv2(det_image3d.imgClass, desired_encoding="passthrough")
+    
+    if imgClass.shape[0] == 1 and imgClass.shape[1] == 1: 
+        imgClass = imgClass[0,0]*np.ones(imgConfidence.shape,dtype=np.uint8)
+    crop = det_image3d.crop
+    
+    det_to_3d(image, info, depth,imgClass,imgConfidence,crop )
 
+# Convert to image to bounding boxes. 
+def callback_imageOneClass(image, info, depth, det_image2D):  
+    print "callback_imageOneClass"
+    imgConfidence = bridge.imgmsg_to_cv2(det_image2D, desired_encoding="passthrough")
+    classNumber = classNumberAndName[classNumberAndName.keys()[0]]
+    imgClass = classNumber*np.ones(imgConfidence.shape)
+    crop = [0.0, 1.0, 0.0,1.0]
+    
+    det_to_3d(image, info, depth,imgClass,imgConfidence,crop )
+
+
+def det_to_3d(image, info, depth,imgClass,imgConfidence,crop ):
     bounding_boxes = Boundingboxes()    
     
-    
-    bwImg = imgConfidence>threshold
-    blobs_labels,n = ndimage.measurements.label(bwImg)
-    dim = bwImg.shape
-    slicers = ndimage.find_objects(blobs_labels)    
-    
-    for slicer in slicers:
+    for className in classNumberAndName.keys():
+        classNumber = classNumberAndName[className]
+        # Select only regions within class
+        bwClass = imgClass==classNumber
+        imgConfidenceClass = np.zeros_like(imgConfidence)
+        imgConfidenceClass[bwClass] = imgConfidence[bwClass]
         
-        normalized = (np.array([slicer[0].start, slicer[0].stop,slicer[1].start, slicer[1].stop],dtype=float)/np.array([dim[0],dim[0],dim[1],dim[1]]))
-                
-        rowShift = crop[0]
-        rowScale = np.diff(crop[0:2])
-        colShift = crop[2]
-        colScale = np.diff(crop[2:4])
+        print "NodeName", nodeName,  " np.min(imgConfidenceClass)",np.min(imgConfidenceClass),"np.max(imgConfidenceClass)",np.max(imgConfidenceClass)
+        # Threshold on the specific class. 
+        bwImg = imgConfidenceClass>expectedMinValue
         
-        bbNor = np.squeeze(np.array([rowShift,rowShift,colShift,colShift])+normalized*np.array([rowScale,rowScale,colScale,colScale]).T)
+        blobs_labels,n = ndimage.measurements.label(bwImg)
+        dim = bwImg.shape
+        slicers = ndimage.find_objects(blobs_labels)    
         
-        tmpBB = Boundingbox()
-        tmpBB.x = bbNor[2]
-        tmpBB.y = bbNor[0]
-        tmpBB.w = np.diff(bbNor[2:])
-        tmpBB.h = np.diff(bbNor[:2])
-        prob = np.max(imgConfidence[slicer]).astype(np.float)
-        tmpNormalized = (prob-expectedMinValue)/(expectedMaxValue-expectedMinValue)
-        tmpBB.prob = np.clip(tmpNormalized,0.0,1.0)
-        print "prob", prob, "Normalized", tmpNormalized , "NormalizedClipped", tmpBB.prob 
-        tmpBB.objectType = np.median(imgClass[slicer])
-        tmpBB.objectName = 'anomaly'
-        
-        bounding_boxes.boundingboxes.append(tmpBB)
-
-    
-    
+        for slicer in slicers:
+            
+            normalized = (np.array([slicer[0].start, slicer[0].stop,slicer[1].start, slicer[1].stop],dtype=float)/np.array([dim[0],dim[0],dim[1],dim[1]]))
+                    
+            rowShift = crop[0]
+            rowScale = np.diff(crop[0:2])
+            colShift = crop[2]
+            colScale = np.diff(crop[2:4])
+            
+            bbNor = np.squeeze(np.array([rowShift,rowShift,colShift,colShift])+normalized*np.array([rowScale,rowScale,colScale,colScale]).T)
+            
+            tmpBB = Boundingbox()
+            tmpBB.x = bbNor[2]
+            tmpBB.y = bbNor[0]
+            tmpBB.w = np.diff(bbNor[2:])
+            tmpBB.h = np.diff(bbNor[:2])
+            prob = np.max(imgConfidenceClass[slicer]).astype(np.float)
+            tmpNormalized = (prob-expectedMinValue)/(expectedMaxValue-expectedMinValue)
+            tmpBB.prob = np.clip(tmpNormalized,0.0,1.0)
+            #print "prob", prob, "Normalized", tmpNormalized , "NormalizedClipped", tmpBB.prob 
+            tmpBB.objectType = classNumber
+            tmpBB.objectName = className
+            
+            bounding_boxes.boundingboxes.append(tmpBB)
     
     #if pose.orientation.w == 0:
-    pose = Pose()
+    
+    # Bug-fix. To remove the first '/' in frame. E.g. '/Multisensor/blah' --> 'Multisensor/blah' 
+    strParts = image.header.frame_id.split('/')
+    if strParts[0] is '':
+        headFrame = str.join('/',strParts[1:])
+    else:
+        headFrame = image.header.frame_id
+        
+    validTranform = True
     try:
-        # Bug-fix. To remove the first '/' in frame. E.g. '/Multisensor/blah' --> 'Multisensor/blah' 
-        strParts = image.header.frame_id.split('/')
-        if strParts[0] is '':
-            headFrame = str.join('/',strParts[1:])
-        else:
-            headFrame = image.header.frame_id
-
-        trans = tfBuffer.lookup_transform( headFrame,baseFrameId, rospy.Time())
+        pose = Pose()
+        trans = tfBuffer.lookup_transform( headFrame,targetFrame, rospy.Time())
         #trans = tfBuffer.lookup_transform( 'Multisense/left_camera_optical_frame','velodyne', rospy.Time())
         pose.orientation = trans.transform.rotation
         #print("pose.orientation:",pose.orientation)
+        
     except Exception as e: #(tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-        #print("Except",e.message,e.args)
+        print("WARNING: In image_det_to_3d_stereo node. No transform was found. 2d detection is NOT converted to 3d detection. A markerArray is not published",e.message,e.args)
         pose.orientation.w = 1
+        validTranform = False
     
-    markerArray, cv_image = boundingboxTo3D(image, info, depth, bounding_boxes,pose,algorithmName,paramVisualizeBoundingboxes,paramEstDistanceMethod)
+    if validTranform: 
+        markerArray, cv_image = boundingboxTo3D(image, info, depth, bounding_boxes,pose,algorithmName,paramVisualizeBoundingboxes,paramEstDistanceMethod)
+        pub_bb.publish(markerArray)
     
-    pub_bb.publish(markerArray)
-    
-    if paramVisualizeBoundingboxes == True:
+    if paramVisualizeBoundingboxes:
         imgDim = np.array([cv_image.shape[0],cv_image.shape[0],cv_image.shape[1],cv_image.shape[1]])
         imgCrop = (imgDim*crop).astype(int)
         cv2.rectangle(cv_image,(imgCrop[2],imgCrop[0]),(imgCrop[3],imgCrop[1]),[0,0,0],3)
         image_message = bridge.cv2_to_imgmsg(cv_image, encoding="passthrough")
         pub_image_visualize.publish(image_message)
     
-    
-ts_image = message_filters.TimeSynchronizer([image_sub,info_sub, depth_sub, det_sub], 10)
-ts_image.registerCallback(callback_image)
+if topicDetImageInSingleClass == '':
+    ts_image = message_filters.TimeSynchronizer([image_sub,info_sub, depth_sub, det_sub3d], 10)
+    ts_image.registerCallback(callback_imageMultiClass)
+else:
+    ts_image2 = message_filters.TimeSynchronizer([image_sub,info_sub, depth_sub, det_sub2d], 10)
+    ts_image2.registerCallback(callback_imageOneClass)
 
 # main
 def main():
-
+    print ''
+    print 'image_det_to_3d_stereo (', nodeName, ') is subscriping to topics: ', topicCamImg, ' - ' ,topicCamInfo, ' - ' ,topicDepth, ' - ' ,topicDepth
+    print 'image_det_to_3d_stereo (', nodeName, ') is publishing topic: ', topicBBoxOut
+        
     rospy.spin()
 
 if __name__ == '__main__':

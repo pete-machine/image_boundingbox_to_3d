@@ -110,10 +110,10 @@ def boundingboxTo3D(image, info, depth, bounding_boxes,pose,algorithmName,paramV
         elif bounding_box.objectType == 1: # Other
             className = "other"
             colorRgb = (0.0, 1.0, 1.0)
-        elif bounding_box.objectType == 2: # Unknown (typically not to be dangered)
+        elif bounding_box.objectType == 2: # Unknown 
             className = "unknown"
             colorRgb = (0.0, 1.0, 1.0)
-        elif bounding_box.objectType == 3: # Unknown (typically not to be dangered)
+        elif bounding_box.objectType == 8: # Anomaly
             className = "anomaly"
             colorRgb = (1.0, 0.0, 1.0)
         else:
@@ -128,11 +128,13 @@ def boundingboxTo3D(image, info, depth, bounding_boxes,pose,algorithmName,paramV
         ## RGB image
         if paramVisualizeBoundingboxes == True:
             bbCropRGB = bbCoord_FromNormalized2Real(bounding_box,cv_image.shape)
-            cv2.rectangle(cv_image,(bbCropRGB[0],bbCropRGB[2]),(bbCropRGB[1],bbCropRGB[3]),(0,255,0),1)
-            cv2.putText(cv_image,className + ', p' + str(round(marker.color.a,2)), (bbCropRGB[0],bbCropRGB[2]), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)                
-
-        # Make marker for each bounding box.         
-        markerArray.markers.append(copy.deepcopy(marker))
+            cv2.rectangle(cv_image,(bbCropRGB[0],bbCropRGB[2]),(bbCropRGB[1],bbCropRGB[3]),(0,255,0),3)
+            cv2.putText(cv_image,className + ', p' + str(round(marker.color.a,2)), (bbCropRGB[0],bbCropRGB[2]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255),2)                
+        #print "marker.pose.position: ", marker.pose.position
+        # Make marker for each bounding box.
+        if sum(np.isnan(np.array([marker.pose.position.x,marker.pose.position.y,marker.pose.position.z]))) == 0: 
+            markerArray.markers.append(copy.deepcopy(marker))
+            print "Valid markerArray"
     return markerArray,cv_image
         
 def bbCoord_FromNormalized2Real(bounding_box,dimImage):

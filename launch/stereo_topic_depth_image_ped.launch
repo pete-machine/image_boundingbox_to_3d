@@ -11,7 +11,7 @@
 		<param name="topicBBoxOut" value="/det/Multisense/ped/BBoxes3d" />
 		<param name="visualizeBoundingboxes" value="False" /> <!-- Select either False: An image (topicVisualizeOut) is NOT published, True: An image (topicVisualizeOut) is published  -->
 		<param name="topicVisualizeOut" value="/det/Multisense/ped/bboxesImage" />
-		<param name="baseFrameId" value="velodyne" />
+		<param name="targetFrame" value="base_link_mount" />
 
 		<param name="estDistanceMethod" value="1" /> <!-- Select either 0: mean, 1: median, 2: 10%-percentile -->
 		

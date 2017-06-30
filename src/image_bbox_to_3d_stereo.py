@@ -27,7 +27,7 @@ topicCamInfo = rospy.get_param(nodeName+'/topicCamInfo', nodeName+'UnknownInputT
 topicDepth = rospy.get_param(nodeName+'/topicDepth', nodeName+'UnknownInputTopic')
 topicBBoxIn = rospy.get_param(nodeName+'/topicBBoxIn', nodeName+'UnknownInputTopic')
 
-baseFrameId = rospy.get_param(nodeName+'/baseFrameId', nodeName+'UnknownFrameId')
+targetFrame = rospy.get_param(nodeName+'/targetFrame', nodeName+'UnknownFrameId')
 algorithmName = rospy.get_param(nodeName+'/algorithmName', nodeName+'NotDefined')
 
 # Get subscripers.
@@ -55,28 +55,32 @@ bridge = CvBridge()
     
 def callback_bb(image, info, depth, bounding_boxes):
     
-    pose = Pose()
+    
+    # Bug-fix. To remove the first '/' in frame. E.g. '/Multisensor/blah' --> 'Multisensor/blah' 
+    strParts = image.header.frame_id.split('/')
+    if strParts[0] is '':
+        headFrame = str.join('/',strParts[1:])
+    else:
+        headFrame = image.header.frame_id
+    
+    validTranform = True
     try:
-        # Bug-fix. To remove the first '/' in frame. E.g. '/Multisensor/blah' --> 'Multisensor/blah' 
-        strParts = image.header.frame_id.split('/')
-        if strParts[0] is '':
-            headFrame = str.join('/',strParts[1:])
-        else:
-            headFrame = image.header.frame_id
-
-        trans = tfBuffer.lookup_transform( headFrame,baseFrameId, rospy.Time())
+        pose = Pose()
+        trans = tfBuffer.lookup_transform( headFrame,targetFrame, rospy.Time())
         
         pose.orientation = trans.transform.rotation
         #print("pose.orientation:",pose.orientation)
     except Exception as e: #(tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
         #print("Except",e.message,e.args)
+        print("WARNING: In image_bbox_to_3d_stereo node. No transform was found. 2d detection is NOT converted to 3d detection. A markerArray is not published",e.message,e.args)
         pose.orientation.w = 1
+        validTranform = False
     
-    markerArray, cv_image = boundingboxTo3D(image, info, depth, bounding_boxes,pose,algorithmName,paramVisualizeBoundingboxes,paramEstDistanceMethod)
-
-    pub_bb.publish(markerArray)
+    if validTranform: 
+        markerArray, cv_image = boundingboxTo3D(image, info, depth, bounding_boxes,pose,algorithmName,paramVisualizeBoundingboxes,paramEstDistanceMethod)
+        pub_bb.publish(markerArray)
     
-    if paramVisualizeBoundingboxes == True:
+    if paramVisualizeBoundingboxes:
         image_message = bridge.cv2_to_imgmsg(cv_image, encoding="passthrough")
         pub_image_visualize.publish(image_message)
 
