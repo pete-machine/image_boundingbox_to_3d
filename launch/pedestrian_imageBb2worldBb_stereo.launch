@@ -9,7 +9,7 @@
 		<param name="topicBBoxIn" value="/det/Multisense/ped/BBoxes2d" />
 
 		<param name="topicBBoxOut" value="/det/Multisense/ped/BBoxes3d" />
-		<param name="visualizeBoundingboxes" value="False" /> <!-- Select either False: An image (topicVisualizeOut) is NOT published, True: An image (topicVisualizeOut) is published  -->
+		<param name="visualizeBoundingboxes" value="True" /> <!-- Select either False: An image (topicVisualizeOut) is NOT published, True: An image (topicVisualizeOut) is published  -->
 		<param name="topicVisualizeOut" value="/det/Multisense/ped/bboxesImage" />
 		<param name="targetFrame" value="base_link_mount" />
 

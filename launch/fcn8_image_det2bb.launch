@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- image detection to 2D: Anomaly -->
+	<node type="image_det2bb.py" name="det_image2bb_fcn8" pkg="image_boundingbox_to_3d" respawn="true" output="screen">
+		<!-- Topics  -->
+		<param name="topicDetImageInMultiClass" value="/det/Multisense/fcn8/detection_image" />
+		<param name="topicBBoxOut" value="/det/Multisense/fcn8/BBoxes2d" />
+
+		<!-- Algorithm settings  -->
+		<param name="config_file" value="$(find image_boundingbox_to_3d)/cfg/image_det2bb_fcn8.cfg" />
+		<param name="threshold" value="0.001" /> <!-- close to zero --> 
+		<param name="expected_max_value" value="255" /> 
+
+	</node>
+</launch>

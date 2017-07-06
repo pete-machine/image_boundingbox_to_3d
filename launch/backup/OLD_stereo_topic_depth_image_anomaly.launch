@@ -9,7 +9,7 @@
 		<param name="topicCamImage" value="/Multisense/left/image_rect_color" />
 		<param name="topicCamInfo" value="/Multisense/left/image_rect_color/camera_info" />
 		<param name="topicDepth" value="/Multisense/depth" />
-		<param name="topicDetImageInSingleClass" value="/det/Multisense/deepanomaly/anomaly" />
+		<param name="topicDetImageInMultiClass" value="/det/Multisense/deepanomaly/anomaly" />
 
 
 		<!-- Visualization stuff  -->

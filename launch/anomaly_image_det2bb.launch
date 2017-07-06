@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- image detection to 2D: Anomaly -->
+	<node type="image_det2bb.py" name="det_image2bb_anomaly" pkg="image_boundingbox_to_3d" respawn="true" output="screen">
+		<!-- Topics  -->
+		<param name="topicDetImageInMultiClass" value="/det/Multisense/deepanomaly/anomaly" />
+		<param name="topicBBoxOut" value="/det/Multisense/deepanomaly/BBoxes2d" />
+
+		<!-- Algorithm settings  -->
+		<param name="config_file" value="$(find image_boundingbox_to_3d)/cfg/image_det2bb_anomaly.cfg" />
+		<param name="threshold" value="700" />
+		<param name="expected_max_value" value="6500" />
+	</node>
+</launch>

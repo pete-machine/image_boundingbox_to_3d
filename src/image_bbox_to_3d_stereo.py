@@ -20,7 +20,6 @@ paramEstDistanceMethod = rospy.get_param(nodeName+'/estDistanceMethod', 1) # 0: 
 # Parameter to specify if bounding boxes are visualized in image. 
 paramVisualizeBoundingboxes = rospy.get_param(nodeName+'/visualizeBoundingboxes', 'False') 
 
-
 # Name of input topics from launch-file. 
 topicCamImg = rospy.get_param(nodeName+'/topicCamImage', nodeName+'UnknownInputTopic')
 topicCamInfo = rospy.get_param(nodeName+'/topicCamInfo', nodeName+'UnknownInputTopic')

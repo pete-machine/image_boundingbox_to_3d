@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- Anomaly -->
+	<node type="image_bbox_to_3d_stereo.py" name="image_bb2world_fcn8_stereo" pkg="image_boundingbox_to_3d" respawn="true" output="screen">
+		<param name="algorithmName" value="fcn8" />
+		<param name="topicCamImage" value="/Multisense/left/image_rect_color" />
+		<param name="topicCamInfo" value="/Multisense/left/image_rect_color/camera_info" />
+		<param name="topicDepth" value="/Multisense/depth" />
+		<param name="topicBBoxIn" value="/det/Multisense/fcn8/BBoxes2d" />
+
+		<param name="topicBBoxOut" value="/det/Multisense/fcn8/BBoxes3d" />
+		<param name="visualizeBoundingboxes" value="True" /> <!-- Select either False: An image (topicVisualizeOut) is NOT published, True: An image (topicVisualizeOut) is published  -->
+		<param name="topicVisualizeOut" value="/det/Multisense/fcn8/bboxesImage" />
+		<param name="targetFrame" value="base_link_mount" />
+
+		<param name="estDistanceMethod" value="1" /> <!-- Select either 0: mean, 1: median, 2: 5%-percentile -->
+	</node>
+</launch>

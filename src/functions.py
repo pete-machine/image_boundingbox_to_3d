@@ -60,81 +60,77 @@ def boundingboxTo3D(image, info, depth, bounding_boxes,pose,algorithmName,paramV
         # Get only valid depth values
         depthCropVec = depthCropVec[~np.isnan(depthCropVec)]
         
-#        medianDepth = np.mean(depthCropVec)
-#        print("EstimatedDistance(mean)",medianDepth)
-#        medianDepth = np.median(depthCropVec)
-#        print("EstimatedDistance(median)",medianDepth)
-#        medianDepth = np.percentile(depthCropVec,10)
-#        print("EstimatedDistance(10% percentile)",medianDepth)
-        
-        if paramEstDistanceMethod == 0:
-            medianDepth = np.mean(depthCropVec)
-        elif paramEstDistanceMethod == 1:
-            medianDepth = np.median(depthCropVec)
-        elif paramEstDistanceMethod == 2:
-            medianDepth = np.percentile(depthCropVec,5)
-        else:
-            raise ValueError('Unknown method for estimate distance selected, set estDistanceMethod to either 0,1 or 2')
-        
-        # tl: top-left corner, br: bottom-right corner
-        xyPoint_tl = np.array([bbCropDepth[0],bbCropDepth[2]]);
-        xyPoint_br = np.array([bbCropDepth[1],bbCropDepth[3]]);
-        
-        #for bbPoint in bbPoints:
-        ray_tl = np.array(cam_model.projectPixelTo3dRay(xyPoint_tl))
-        ray_br = np.array(cam_model.projectPixelTo3dRay(xyPoint_br))
-        xyzPoint_tl = ray_tl*medianDepth
-        xyzPoint_br = ray_br*medianDepth
-        
-        bbWidth = xyzPoint_br[0]-xyzPoint_tl[0]
-        bbHeight = xyzPoint_br[1]-xyzPoint_tl[1] 
-        bbPosition = np.array([xyzPoint_tl[0]+bbWidth/2,xyzPoint_br[1],(xyzPoint_tl[2]+xyzPoint_br[2])/2]) # x,y,z
-
-        
-        marker.scale.x = bbWidth
-        marker.scale.y = bbWidth
-        marker.scale.z = bbHeight
-        
-        
-        marker.pose.position.x = bbPosition[0]
-        marker.pose.position.y = bbPosition[1]-bbHeight/2
-        marker.pose.position.z = bbPosition[2]
-
-        marker.pose.orientation = pose.orientation
-        marker.id = idx
-        marker.color.a = bounding_box.prob # Confidence
-	
-        if bounding_box.objectType == 0: # Human
-            className = "human"
-            colorRgb = (1.0, 0.0, 0.0)
-        elif bounding_box.objectType == 1: # Other
-            className = "other"
-            colorRgb = (0.0, 1.0, 1.0)
-        elif bounding_box.objectType == 2: # Unknown 
-            className = "unknown"
-            colorRgb = (0.0, 1.0, 1.0)
-        elif bounding_box.objectType == 8: # Anomaly
-            className = "anomaly"
-            colorRgb = (1.0, 0.0, 1.0)
-        else:
-            className = "bad"
-            colorRgb = (0.0, 0.0, 1.0)
-
-        marker.ns = os.path.join(algorithmName, className)            
-        marker.color.r = colorRgb[0]
-        marker.color.g = colorRgb[1]
-        marker.color.b = colorRgb[2]        
-
-        ## RGB image
-        if paramVisualizeBoundingboxes == True:
-            bbCropRGB = bbCoord_FromNormalized2Real(bounding_box,cv_image.shape)
-            cv2.rectangle(cv_image,(bbCropRGB[0],bbCropRGB[2]),(bbCropRGB[1],bbCropRGB[3]),(0,255,0),3)
-            cv2.putText(cv_image,className + ', p' + str(round(marker.color.a,2)), (bbCropRGB[0],bbCropRGB[2]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255),2)                
-        #print "marker.pose.position: ", marker.pose.position
-        # Make marker for each bounding box.
-        if sum(np.isnan(np.array([marker.pose.position.x,marker.pose.position.y,marker.pose.position.z]))) == 0: 
-            markerArray.markers.append(copy.deepcopy(marker))
-            print "Valid markerArray"
+        # 3D marker is only calculated for bbAreas with depth information. 
+        if len(depthCropVec) > 0:
+            if paramEstDistanceMethod == 0:
+                medianDepth = np.mean(depthCropVec)
+            elif paramEstDistanceMethod == 1:
+                medianDepth = np.median(depthCropVec)
+            elif paramEstDistanceMethod == 2:
+                medianDepth = np.percentile(depthCropVec,5)
+            else:
+                raise ValueError('Unknown method for estimate distance selected, set estDistanceMethod to either 0,1 or 2')
+            
+            # tl: top-left corner, br: bottom-right corner
+            xyPoint_tl = np.array([bbCropDepth[0],bbCropDepth[2]]);
+            xyPoint_br = np.array([bbCropDepth[1],bbCropDepth[3]]);
+            
+            #for bbPoint in bbPoints:
+            ray_tl = np.array(cam_model.projectPixelTo3dRay(xyPoint_tl))
+            ray_br = np.array(cam_model.projectPixelTo3dRay(xyPoint_br))
+            xyzPoint_tl = ray_tl*medianDepth
+            xyzPoint_br = ray_br*medianDepth
+            
+            bbWidth = xyzPoint_br[0]-xyzPoint_tl[0]
+            bbHeight = xyzPoint_br[1]-xyzPoint_tl[1] 
+            bbPosition = np.array([xyzPoint_tl[0]+bbWidth/2,xyzPoint_br[1],(xyzPoint_tl[2]+xyzPoint_br[2])/2]) # x,y,z
+    
+            
+            marker.scale.x = bbWidth
+            marker.scale.y = bbWidth
+            marker.scale.z = bbHeight
+            
+            
+            marker.pose.position.x = bbPosition[0]
+            marker.pose.position.y = bbPosition[1]-bbHeight/2
+            marker.pose.position.z = bbPosition[2]
+    
+            marker.pose.orientation = pose.orientation
+            marker.id = idx
+            marker.color.a = bounding_box.prob # Confidence
+    	
+            if bounding_box.objectType == 0: # Human
+                className = "human"
+                colorRgb = (1.0, 0.0, 0.0)
+            elif bounding_box.objectType == 1: # Other
+                className = "other"
+                colorRgb = (0.0, 1.0, 1.0)
+            elif bounding_box.objectType == 2: # Unknown 
+                className = "unknown"
+                colorRgb = (0.0, 1.0, 1.0)
+            elif bounding_box.objectType == 8: # Anomaly
+                className = "anomaly"
+                colorRgb = (1.0, 0.0, 1.0)
+            else:
+                className = "bad"
+                colorRgb = (0.0, 0.0, 1.0)
+    
+            marker.ns = os.path.join(algorithmName, className)            
+            marker.color.r = colorRgb[0]
+            marker.color.g = colorRgb[1]
+            marker.color.b = colorRgb[2]        
+    
+            ## RGB image
+            if paramVisualizeBoundingboxes == True:
+                bbCropRGB = bbCoord_FromNormalized2Real(bounding_box,cv_image.shape)
+                cv2.rectangle(cv_image,(bbCropRGB[0],bbCropRGB[2]),(bbCropRGB[1],bbCropRGB[3]),(0,255,0),3)
+                cv2.putText(cv_image,className + ', p' + str(round(marker.color.a,2)), (bbCropRGB[0],bbCropRGB[2]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255),2)                
+            #print "marker.pose.position: ", marker.pose.position
+            # Make marker for each bounding box.
+            if sum(np.isnan(np.array([marker.pose.position.x,marker.pose.position.y,marker.pose.position.z]))) == 0: 
+                markerArray.markers.append(copy.deepcopy(marker))
+            else:
+                print "Nan values in 2d bbox to 3d bbox: Invalid markerArray!!"
     return markerArray,cv_image
         
 def bbCoord_FromNormalized2Real(bounding_box,dimImage):
